@@ -46,7 +46,12 @@ class LLM_wrapper:
 
     @staticmethod
     def load_input_file(input_file_path: str, text_column: str, debug_mode: bool):
-        df = pd.read_csv(input_file_path)
+        if input_file_path.endswith(".csv"):
+            df = pd.read_csv(input_file_path)
+        elif input_file_path.endswith(".parquet.br") or input_file_path.endswith(
+            ".parquet"
+        ):
+            df = pd.read_parquet(input_file_path)
         if text_column not in df.columns:
             raise ValueError(
                 f"Missing required column '{text_column}' in the input file"
