@@ -1,5 +1,4 @@
-data/cloned_repos/*
-!data/cloned_repos/.gitkeep
+cloned_repos
 
 .DS_Store
 
