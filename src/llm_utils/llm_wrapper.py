@@ -5,6 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 import time
 import sys
+from typing import Callable, Optional
 
 sys.path.append("../")
 
@@ -39,7 +40,8 @@ class LLM_wrapper:
                 )
                 return resp.output_parsed
 
-            except Exception:
+            except Exception as e:
+                print(f"Error during LLM call: {e}")
                 if attempt == max_retries:
                     return self.generate_nan_output()
                 time.sleep(0.6 * attempt)
@@ -67,6 +69,7 @@ class LLM_wrapper:
         output_dir: str,
         save_ckpt_every: int = 10,
         debug_mode: bool = False,
+        row_filter: Optional[Callable[[pd.Series], bool]] = None,
     ):
         checkpoint_dir = os.path.join(output_dir, "checkpoints")
         os.makedirs(checkpoint_dir, exist_ok=True)
@@ -108,8 +111,17 @@ class LLM_wrapper:
         # Work only on rows without a generation yet
         unprocessed_df = df[df["generation"].isna()]
 
+        if row_filter is not None:
+            unprocessed_df = unprocessed_df[unprocessed_df.apply(row_filter, axis=1)]
+
+        n_total = len(df)
+        n_unprocessed = df["generation"].isna().sum()
+        n_filtered = len(unprocessed_df)
+
         print(
-            f"Total rows: {len(df)}, Already processed: {len(df) - len(unprocessed_df)}, Remaining: {len(unprocessed_df)}"
+            f"Total rows: {n_total}, "
+            f"Already processed: {n_total - n_unprocessed}, "
+            f"Remaining (after filter): {n_filtered}"
         )
 
         for i, (idx, row) in enumerate(
@@ -135,5 +147,6 @@ class LLM_wrapper:
                 df.to_csv(checkpoint_path, index=False)
 
         # Final save
-        df.to_csv(output_filename, index=False)
+        # df.to_csv(output_filename, index=False)
         print("Processing complete. Final results saved.")
+        return df
