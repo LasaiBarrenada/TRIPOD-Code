@@ -91,6 +91,7 @@ dependencies:
   - jedi=0.19.2
   - jinja2=3.1.6
   - jiter=0.12.0
+  - joblib=1.5.3
   - json5=0.12.1
   - jsonpointer=3.0.0
   - jsonschema=4.25.1
@@ -228,6 +229,8 @@ dependencies:
   - rfc3986-validator=0.1.1
   - rfc3987-syntax=1.1.0
   - rpds-py=0.30.0
+  - scikit-learn=1.8.0
+  - scipy=1.16.3
   - send2trash=1.8.3
   - setuptools=80.9.0
   - six=1.17.0
@@ -237,6 +240,7 @@ dependencies:
   - soupsieve=2.8.1
   - stack_data=0.6.3
   - terminado=0.18.1
+  - threadpoolctl=3.6.0
   - tiktoken=0.12.0
   - tinycss2=1.5.1
   - tk=8.6.13
