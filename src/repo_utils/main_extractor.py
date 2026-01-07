@@ -1,16 +1,29 @@
 from pathlib import Path
 import re
 from pydantic import BaseModel, HttpUrl
-from typing import List, Union, Tuple
+from enum import Enum
+from typing import List, Union, Optional
 from urllib.parse import urlparse
 import os
-from .repo_providers import (
-    get_repo_cloner,
-    RepoStatus,
-    RepoExtractionResult,
-    RepoNotSupportedError,
-)
+from .repo_providers import get_repo_cloner, RepoNotSupportedError
 from .tokenizer import extract_text_from_file, tokenize_text
+
+TOKEN_CUTOFF_PER_FILE = 3000
+
+
+class RepoStatus(str, Enum):
+    OK = "ok"
+    EMPTY = "empty"
+    INACCESSIBLE = "inaccessible"
+    NOT_SUPPORTED = "not_supported"
+
+
+class RepoExtractionResult(BaseModel):
+    repo_url: str
+    status: RepoStatus
+    repo_path: Optional[str] = None
+    output: Optional[str] = None
+    error: Optional[str] = None
 
 
 class RepoTree(BaseModel):
@@ -91,43 +104,72 @@ allow_list = {
     ".toml",
 }
 
-token_cutoff = 3000
 
-
-def read_all_files(base_path: Path) -> str:
+def read_all_files(base_path: Path, verbose: bool, context_window: int) -> str:
     """
     Reads files in the repo. Those in the blacklist are excluded,
-    those in the whitelist are taken in full, and the rest are taken until the token cutoff is reached.
+    those in the allowlist are taken in full, and the rest are taken
+    with a per-file token cutoff.
+
+    Additionally, we track a global token budget (`context_window`).
+    For ANY file (allowlisted or not), if adding that file's header+content
+    would exceed the context window, we only add the header and a
+    truncation marker, then stop reading further files.
     """
     file_contents = []
-    for file_path in base_path.rglob("*"):
-        if file_path.is_file():
-            rel_path = file_path.relative_to(base_path)
-            rel_path_str = str(rel_path)
-            is_readme = bool(
-                re.match(r"readme(\.md|\.txt)?", str(rel_path), re.IGNORECASE)
-            )
-            if file_path.suffix.lower() in block_list:
-                continue
-            header = f"\n\nFILE: {rel_path_str}\n"
-            if is_readme or file_path.suffix.lower() in allow_list:
-                content = extract_text_from_file(file_path)
-                file_contents.append(header + content)
-                continue
-            try:
-                content = extract_text_from_file(file_path)
-                tokens, enc = tokenize_text(content)
-                content = file_path.read_text(encoding="utf-8", errors="ignore")
-                if len(tokens) > token_cutoff:
-                    original_len = len(tokens)
-                    content = content[:token_cutoff] + (
-                        f"\n\n[... CONTENT TRUNCATED: {original_len:,} chars > {token_cutoff:,} limit ]"
-                    )
-                    # print(f"-> TRUNCATED: {rel_path} ({original_len:,} chars)")
-                file_contents.append(header + content)
+    total_tokens = 0
 
-            except Exception as e:
+    for file_path in base_path.rglob("*"):
+        if not file_path.is_file():
+            continue
+
+        rel_path = file_path.relative_to(base_path)
+        rel_path_str = str(rel_path)
+
+        is_readme = bool(re.match(r"readme(\.md|\.txt)?", rel_path_str, re.IGNORECASE))
+
+        # Skip ignored suffixes entirely
+        if file_path.suffix.lower() in block_list:
+            continue
+
+        header = f"\n\nFILE: {rel_path_str}\n"
+
+        try:
+            # Get file content via your existing extractor
+            content = extract_text_from_file(file_path)
+
+            # Apply *per-file* cutoff only for non-allowlisted & non-readme files
+            if not (is_readme or file_path.suffix.lower() in allow_list):
+                tokens, enc = tokenize_text(content)
+                if len(tokens) > TOKEN_CUTOFF_PER_FILE:
+                    original_len = len(tokens)
+                    truncated_text = enc.decode(tokens[:TOKEN_CUTOFF_PER_FILE])
+                    content = (
+                        truncated_text
+                        + f"\n\n[... CONTENT TRUNCATED: {original_len:,} tokens > "
+                        f"{TOKEN_CUTOFF_PER_FILE:,} token limit ]"
+                    )
+
+            # Now compute tokens for what we plan to add (header + content)
+            segment = header + content
+            segment_tokens, _ = tokenize_text(segment)
+            segment_token_len = len(segment_tokens)
+
+            # If adding this file would exceed the global context window:
+            # only add the header and a repository-level truncation note, then stop.
+            if total_tokens + segment_token_len > context_window:
+                truncation_notice = "(REST OF THE REPOSITORY IS TRUNCATED)"
+                file_contents.append(header + truncation_notice)
+                break
+
+            # Otherwise, add it and update total
+            file_contents.append(segment)
+            total_tokens += segment_token_len
+
+        except Exception as e:
+            if verbose:
                 print(f"Skipping {file_path}: {e}")
+
     return "\n".join(file_contents)
 
 

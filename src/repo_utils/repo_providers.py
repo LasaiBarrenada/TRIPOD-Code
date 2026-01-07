@@ -7,26 +7,9 @@ import re
 import git
 import shutil
 import subprocess
-from typing import List, Optional
+from typing import List
 import zipfile
 import tarfile
-from enum import Enum
-from pydantic import BaseModel
-
-
-class RepoStatus(str, Enum):
-    OK = "ok"
-    EMPTY = "empty"
-    INACCESSIBLE = "inaccessible"
-    NOT_SUPPORTED = "not_supported"
-
-
-class RepoExtractionResult(BaseModel):
-    repo_url: str
-    status: RepoStatus
-    repo_path: Optional[str] = None
-    output: Optional[str] = None
-    error: Optional[str] = None
 
 
 class RepoNotSupportedError(Exception):
@@ -97,6 +80,11 @@ class ZenodoCloner(RepoCloner):
         title = data["metadata"].get("title", f"zenodo_{record_id}")
         safe_title = re.sub(r"[^a-zA-Z0-9._-]+", "_", title).strip("_")
         repo_path = base_path / safe_title
+
+        # Check if already cloned
+        if repo_path.exists() and any(repo_path.iterdir()):
+            return repo_path
+
         repo_path.mkdir(parents=True, exist_ok=True)
 
         for f in data.get("files", []):
@@ -132,6 +120,11 @@ class FigshareCloner(RepoCloner):
 
         safe_title = re.sub(r"[^a-zA-Z0-9._-]+", "_", title).strip("_")
         repo_path = base_path / safe_title
+
+        # Check if already cloned
+        if repo_path.exists() and any(repo_path.iterdir()):
+            return repo_path
+
         repo_path.mkdir(parents=True, exist_ok=True)
 
         files = requests.get(f"{self.API_BASE}{article_id}/files").json()
@@ -149,49 +142,49 @@ class FigshareCloner(RepoCloner):
 class OSFCloner(RepoCloner):
     def clone(self, repo_url: str, base_path: Path) -> Path:
         project_id = repo_url.rstrip("/").split("/")[-1]
-        tmp_root = base_path / project_id
-
-        if not (tmp_root.exists() and any(tmp_root.iterdir())):
-            subprocess.run(
-                ["osf", "-p", project_id, "clone"],
-                cwd=base_path,
-                check=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-
         repo_path = base_path / project_id
+
+        # Skip cloning if already done
+        if repo_path.exists() and any(repo_path.iterdir()):
+            return repo_path
+
         repo_path.mkdir(parents=True, exist_ok=True)
 
-        osf_storage = tmp_root / "osfstorage"
-        if not osf_storage.exists():
-            return repo_path  # EMPTY but accessible
+        # Clone project (always creates osfstorage/)
+        subprocess.run(
+            ["osf", "-p", project_id, "clone", str(repo_path)],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
+        osf_storage = repo_path / "osfstorage"
+
+        # Empty but accessible project
+        if not osf_storage.exists():
+            return repo_path
+
+        # Move osfstorage/* → repo_path/*
         for item in osf_storage.iterdir():
             shutil.move(str(item), repo_path)
 
+        # Remove osfstorage wrapper
         shutil.rmtree(osf_storage, ignore_errors=True)
+
         return repo_path
 
 
 class DOICloner(RepoCloner):
     """Resolves a DOI link to its final URL and delegates to the correct cloner."""
 
-    def clone(self, repo_url: str, repo_path: Path):
-        repo_path.mkdir(parents=True, exist_ok=True)
-        # print(f"Resolving DOI: {repo_url}")
+    def clone(self, repo_url: str, base_path: Path) -> Path:
+        resp = requests.head(repo_url, allow_redirects=True, timeout=10)
+        resp.raise_for_status()
 
-        try:
-            resp = requests.head(repo_url, allow_redirects=True, timeout=10)
-            resp.raise_for_status()
-            final_url = resp.url
-            # print(f"DOI resolved to: {final_url}")
-            cloner = get_repo_cloner(final_url)
-            cloner.clone(final_url, repo_path)
+        final_url = resp.url
+        cloner = get_repo_cloner(final_url)
 
-        except Exception as e:
-            print(f"Failed to resolve DOI or delegate: {e}")
-            raise
+        return cloner.clone(final_url, base_path)
 
 
 CLONER_MAP = {
@@ -216,7 +209,9 @@ def get_repo_cloner(repo_url: str) -> RepoCloner:
     if domain in CLONER_MAP:
         return CLONER_MAP[domain]()
 
-    if any(s in domain for s in ["git.", ".github.io", ".gitlab.", "gitlab", ".gite."]):
+    if any(s in domain for s in ["git.", "gitlab"]):
         return DefaultGitCloner()
 
-    raise ValueError(f"No specific cloner found for URL domain or format: {domain}")
+    raise RepoNotSupportedError(
+        f"No specific cloner found for URL domain or format: {domain}"
+    )
