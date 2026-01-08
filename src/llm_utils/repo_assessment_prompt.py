@@ -16,4 +16,5 @@ REPO_ASSESSMENT_PROMPT = """
     - contains_citation: does the repository include a citation to the paper, in the format of a latex citation key or in plain text?
     - includes_data_or_sample: does the repository include either the original dataset or a sample dataset for demonstration purposes?
     - comments_and_explanations: provide additional comments and explanations regarding the repository's quality, strengths, weaknesses, or any notable aspects that may not be fully captured by the boolean assessments above.
+    - coding_languages: (if the repository contains code) list all programming languages used in the repository.
     """
