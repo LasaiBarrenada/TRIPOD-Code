@@ -37,6 +37,7 @@ class LLM_wrapper:
                         {"role": "user", "content": user_prompt},
                     ],
                     text_format=self.output_format_class,
+                    truncation="auto",
                 )
                 return resp.output_parsed
 
