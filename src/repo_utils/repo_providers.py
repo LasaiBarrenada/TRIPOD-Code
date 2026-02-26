@@ -56,6 +56,10 @@ class ZenodoCloner(RepoCloner):
         record_id = repo_url.rstrip("/").split("/")[-1]
         repo_path = base_path / f"zenodo_{record_id}"
 
+        # If already cloned, do nothing
+        if repo_path.exists() and any(repo_path.iterdir()):
+            return repo_path
+
         repo_path.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -68,20 +72,16 @@ class ZenodoCloner(RepoCloner):
                 text=True,
             )
         except subprocess.CalledProcessError as e:
-            # sometimes metadata is corrupted but zip did download correctly
-            # here we check that there's one subdir (the cloned repo dir) and that it contains a zip
             subdirs = [p for p in repo_path.iterdir() if p.is_dir()]
             if len(subdirs) == 1 and any(
                 f.suffix == ".zip" for f in subdirs[0].iterdir()
             ):
                 pass
-            raise RuntimeError(
-                f"zenodo_get failed for record {record_id}: {e.stderr.strip()}"
-            )
+            else:
+                raise RuntimeError(
+                    f"zenodo_get failed for record {record_id}: {e.stderr.strip()}"
+                )
 
-        # -------------------------
-        # Extract ZIP files
-        # -------------------------
         # when repo downloaded in subfolder, adjust path:
         subdirs = [p for p in repo_path.iterdir() if p.is_dir()]
         if len(subdirs) == 1:

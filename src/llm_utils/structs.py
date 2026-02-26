@@ -13,17 +13,6 @@ CodeStatementLocation = Literal[
     "other",
 ]
 
-CodingLanguage = Literal[
-    "python",
-    "r",
-    "matlab",
-    "sas",
-    "cpp",
-    "shell_bash",
-    "sql",
-    "other",
-]
-
 
 class PaperAssessment(BaseModel):
     """
@@ -186,12 +175,11 @@ class RepoAssessment(BaseModel):
     )
 
     # Languages
-    coding_languages: Optional[List[CodingLanguage]] = Field(
+    coding_languages: Optional[List[str]] = Field(
         ...,
         description=(
-            "If the repository contains code, return all programming languages used. "
-            "Choose all that apply from: python, r, matlab, sas, cpp, shell_bash, sql, other. "
-            "Use 'other' for languages that do not fit these categories. "
+            "If the repository contains code, return all programming languages used. In a list"
+            "For example, ['python', 'r', 'sql']."
             "Do not return anything if there is no code in the repository."
         ),
     )
