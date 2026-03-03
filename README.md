@@ -5,8 +5,7 @@ This repository contains the code used in [Code Sharing In Prediction Model Rese
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Setup](#setup)
-3. [Performance benchmarking code](#performance)
-4. [Inference speed benchmarking code](#inference-speed)
+3. [How to use this repository](#how-to-use-this-repository)
 5. [Reference](#reference)
 
 ## Introduction
