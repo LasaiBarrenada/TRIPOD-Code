@@ -78,12 +78,12 @@ To reproduce our results, you can run the following notebooks:
         - Purpose: This notebook evaluates the LLM's repository assessment using the annotated repositories.
         - Outputs: The model's outputs (saved in `data/03_repo_assessment/evaluation_repo_assessment.csv`) and performance metrics.
 
-    -**3c)** `notebooks/03c_download_repos.ipynb`: 
+    - **3c)** `notebooks/03c_download_repos.ipynb`: 
         - Inputs: The file containing the extracted repository links generated in step 2c (`data/02_paper_assessment/paper_assessment_pred.parquet.br`).
         - Purpose: This notebook downloads the repositories for the entire dataset using the repository utility (`src/repo_utils/`).
         - Outputs: A file containing all the rows of the dataset for which a repository link was found in step 2c, along with the repository contents: `data/03_repo_assessment/references_with_repo.parquet.br`.
 
-    -**3d)** `notebooks/03d_generate_repo_assessment_predictions.ipynb`:
+    - **3d)** `notebooks/03d_generate_repo_assessment_predictions.ipynb`:
         - Inputs: The file generated in the last step: `data/03_repo_assessment/references_with_repo.parquet.br`.
         - Purpose: This notebook runs the LLM's repository assessment on all repositories that were downloaded.
         - Outputs: The model's outputs (saved in `data/03_repo_assessment/references_repo_assessment_pred.parquet.br`).
