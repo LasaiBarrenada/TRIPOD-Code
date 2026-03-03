@@ -33,7 +33,7 @@ To use our repository, you first need to follow these steps:
    conda activate TRIPOD-Code
    ```
 
-4. **Add your OpenAI API key**
+4. **Add your OpenAI API key**  
     Our datasets at every step of the process are made available. However, if you would like to reproduce our results, or want to run new data through OpenAI's model, you will need to add an API key.
     For this, rename the file `.env.txt` to `.env`, and paste your API key after `OPENAI_API_KEY=`.
 
