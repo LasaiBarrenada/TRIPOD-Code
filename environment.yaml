@@ -20,6 +20,9 @@ dependencies:
   - tiktoken=0.12.0
   - tqdm=4.67.1
   - plotly=6.5.1
+  - pypdf2=3.0.1
+  - gitpython=3.1.46
   - pip
   - pip:
       - git+https://github.com/dvolgyes/zenodo_get@c1f71bdd0b14e4cf732eef87df81dcc2e64c31dc
+      - kaleido=1.2.0
