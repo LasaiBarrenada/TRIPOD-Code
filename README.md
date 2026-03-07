@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18897514.svg)](https://doi.org/10.5281/zenodo.18897514)
+
 # TRIPOD-Code
 
 This repository contains the code used in [Code Sharing In Prediction Model Research: A Scoping Review](#TODO).
